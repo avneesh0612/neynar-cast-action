@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "frog dev",
-    "serve": "bun run src/index.tsx"
+    "serve": "bun run src/index.tsx",
+    "build": "bun build src/index.tsx"
   },
   "dependencies": {
     "@neynar/nodejs-sdk": "^1.16.0",

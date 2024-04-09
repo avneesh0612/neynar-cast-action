@@ -1,16 +1,16 @@
-import { Button, Frog, TextInput } from "frog";
+import { config } from "dotenv";
+import { Button, Frog } from "frog";
 import { devtools } from "frog/dev";
-import { serveStatic } from "frog/serve-static";
-import neynarClient from "./lib/neynarClient.js";
 import { neynar as neynarHub } from "frog/hubs";
 import { neynar } from "frog/middlewares";
-import { config } from "dotenv";
+import { serveStatic } from "frog/serve-static";
+import neynarClient from "./lib/neynarClient.js";
 config();
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY ?? "";
 
 const ADD_URL =
-  "https://warpcast.com/~/add-cast-action?name=gm&icon=thumbsup&actionType=post&postUrl=https://neynar-cast-action.vercel.app/api/gm";
+  "https://warpcast.com/~/add-cast-action?actionType=post&name=followers&icon=person&postUrl=https%3A%2F%2Fd588-2405-201-800c-6a-70a7-56e4-516c-2d3c.ngrok-free.app%2Fapi%2Fgm";
 
 export const app = new Frog({
   assetsPath: "/",
@@ -41,7 +41,7 @@ app.frame("/", (c) => {
           width: "100%",
         }}
       >
-        <div
+        <h2
           style={{
             color: "white",
             fontSize: 60,
@@ -54,7 +54,7 @@ app.frame("/", (c) => {
           }}
         >
           gm! Add cast action
-        </div>
+        </h2>
       </div>
     ),
     intents: [<Button.Link href={ADD_URL}>Add Action</Button.Link>],
@@ -62,27 +62,26 @@ app.frame("/", (c) => {
 });
 
 app.hono.post("/gm", async (c) => {
-  console.log(c);
-  const body = await c.req.json();
+  try {
+    const body = await c.req.json();
+    const result = await neynarClient.validateFrameAction(
+      body.trustedData.messageBytes
+    );
 
-  const interactorFid = body?.message?.data?.fid;
-  const castFid = body?.message?.data.frameActionBody.castId?.fid as number;
-  if (interactorFid === castFid) {
-    return c.json({ message: "Nice try." }, 400);
-  }
+    const { users } = await neynarClient.fetchBulkUsers([
+      Number(result.action.cast.author.fid),
+    ]);
 
-  const { users } = await neynarClient.fetchBulkUsers([castFid]);
+    if (!users) {
+      return c.json({ message: "Error. Try Again." }, 500);
+    }
 
-  if (!users) {
+    let message = `Count:${users[0].follower_count}`;
+
+    return c.json({ message });
+  } catch (e) {
     return c.json({ message: "Error. Try Again." }, 500);
   }
-
-  let message = `GM ${users[0].display_name}!`;
-  if (message.length > 30) {
-    message = "GM!";
-  }
-
-  return c.json({ message });
 });
 
 app.use("/*", serveStatic({ root: "./public" }));
